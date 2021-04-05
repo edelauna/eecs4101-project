@@ -48,10 +48,10 @@ class Agent:
         self.turn(self.world.directions / 2)
 
     # return True if successfully moved in that direction
-    def goInDirection(self, dir):
+    def goInDirection(self, dir, agent = 0):
         target = self.cell.neighbour[dir]
-        if getattr(target, 'wall', False):
-            #print "hit a wall"
+        t_agent = target.agents[0] if len(target.agents) > 0 else 1
+        if getattr(target, 'wall', False) or agent == t_agent:
             return False
         self.cell = target
         return True
@@ -99,7 +99,7 @@ class World:
         self.display = makeDisplay(self)
         self.directions = directions
         if filename is not None:
-            data = file(filename).readlines()
+            data = open(filename).readlines()
             if height is None:
                 height = len(data)
             if width is None:
@@ -150,7 +150,7 @@ class World:
         if not hasattr(self.Cell, 'save'):
             return
         if isinstance(f, type('')):
-            f = file(f, 'w')
+            f = open(f, 'w')
 
         total = ''
         for j in range(self.height):
@@ -168,7 +168,7 @@ class World:
         if not hasattr(self.Cell, 'load'):
             return
         if isinstance(f, type('')):
-            f = file(f)
+            f = open(f)
         lines = f.readlines()
         lines = [x.rstrip() for x in lines]
         fh = len(lines)
@@ -177,12 +177,12 @@ class World:
             fh = self.height
             starty = 0
         else:
-            starty = (self.height - fh) / 2
+            starty = (self.height - fh) // 2
         if fw > self.width:
             fw = self.width
             startx = 0
         else:
-            startx = (self.width - fw) / 2
+            startx = (self.width - fw) // 2
 
         self.reset()
         for j in range(fh):
@@ -207,17 +207,39 @@ class World:
             self.display.redraw()
         else:
             for a in self.agents:
+                t_eaten = self.checkIfEaten(a)
+                t_fed = self.checkIfFed(a)
                 oldCell = a.cell
                 a.update()
                 if oldCell != a.cell:
                     self.display.redrawCell(oldCell.x, oldCell.y)
                 self.display.redrawCell(a.cell.x, a.cell.y)
+                if self.checkIfEaten(a) > t_eaten:
+                    self.display.redrawCell(5, 6)
+                if self.checkIfFed(a) > t_fed:
+                    self.display.redrawCell(5, 6)
+                    self.display.redrawCell(8, 2)
+                    self.display.redrawCell(7, 3)
         if (fed):
             self.fed = fed
         if (eaten):
             self.eaten = eaten
         self.display.update()
         self.age += 1
+
+    def checkIfEaten(self, agent):
+        try: 
+            t_eaten = agent.eaten
+        except:
+            t_eaten = 0
+        return t_eaten
+
+    def checkIfFed(self, agent):
+        try: 
+            t_fed = agent.fed
+        except:
+            t_fed = 0
+        return t_fed
 
     def getPointInDirection(self, x, y, dir):
         if self.directions == 8:
@@ -390,7 +412,7 @@ class TkinterDisplay:
         if hexgrid:
             iw += self.size / 2
 
-        f = file('temp.ppm', 'wb')
+        f = open('temp.ppm', 'wb')
         f.write('P6\n%d %d\n255\n' % (iw, ih))
 
         odd = False
@@ -518,7 +540,7 @@ class PygameDisplay:
                     try:
                         self.screen.fill(c, (sx, sy, self.size, self.size))
                     except TypeError:
-                        print 'Error: invalid colour:', c
+                        print('Error: invalid colour:', c)
                 sx += self.size
             odd = not odd
             sy += self.size
@@ -618,9 +640,9 @@ def makeTitle(world):
     text = 'age: %d' % world.age
     extra = []
     if world.fed:
-        extra.append('fed=%d' % world.fed)
+        extra.append('Win=%d' % world.fed)
     if world.eaten:
-        extra.append('eaten=%d' % world.eaten)
+        extra.append('Loss=%d' % world.eaten)
     if world.display.paused:
         extra.append('paused')
     if world.display.updateEvery != 1:

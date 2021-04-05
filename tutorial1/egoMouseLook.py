@@ -1,6 +1,7 @@
 import time
 import random
 import shelve
+from importlib import reload
 
 import pdb
 
@@ -33,7 +34,7 @@ class Cell(cellular.Cell):
 
     def colour(self):
         if self.wall:
-            return 'black'
+            return 'blue'
         else:
             return 'white'
 
@@ -47,29 +48,36 @@ class Cell(cellular.Cell):
 class Cat(cellular.Agent):
     cell = None
     score = 0
-    colour = 'orange'
+    colour = 'grey'
 
     def update(self):
         cell = self.cell
-        if cell != mouse.cell:
+        if cell != mouse.cell and cell != cheese.cell:
             self.goTowards(mouse.cell)
             while cell == self.cell:
                 self.goInDirection(random.randrange(directions))
+                if self.cell == cheese.cell:
+                    world.agents.remove(cheese)
 
 
 class Cheese(cellular.Agent):
-    colour = 'yellow'
+    colour = 'brown'
 
     def update(self):
-        pass
+        # looking diagonally
+        cell = self.cell.neighbour[5]
+        if cell == cat.cell:
+            self.goInDirection(5)
+        else: 
+            cheese.cell = world.getCell(8,2)
 
 
 class Mouse(cellular.Agent):
-    colour = 'gray'
+    colour = 'black'
 
     def __init__(self):
         self.ai = None
-        self.ai = qlearn.QLearn(actions=range(directions),
+        self.ai = qlearn.QLearn(actions=list(range(directions)),
                                 alpha=0.1, gamma=0.9, epsilon=0.1)
         self.eaten = 0
         self.fed = 0
@@ -90,13 +98,22 @@ class Mouse(cellular.Agent):
                 self.ai.learn(self.lastState, self.lastAction, reward, state)
             self.lastState = None
 
-            self.cell = pickRandomLocation()
+            #self.cell = pickRandomLocation()
+            self.cell = world.getCell(6, 1)
+            cat.cell = world.getCell(5, 6)
+            if len(world.agents) < 3:
+                world.addAgent(cheese, cell=world.getCell(8,2))
             return
 
-        if self.cell == cheese.cell:
+        if cheese.cell == cat.cell:
             self.fed += 1
             reward = 50
-            cheese.cell = pickRandomLocation()
+            if self.lastState is not None:
+                self.ai.learn(self.lastState, self.lastAction, reward, state)
+            self.lastState = None
+            self.cell = world.getCell(6,1)
+            cat.cell = world.getCell(5,6)
+            return
 
         if self.lastState is not None:
             self.ai.learn(self.lastState, self.lastAction, reward, state)
@@ -104,11 +121,20 @@ class Mouse(cellular.Agent):
         # Choose a new action and execute it
         state = self.calcState()
         print(state)
-        action = self.ai.chooseAction(state)
-        self.lastState = state
-        self.lastAction = action
+        cell = self.cell
+        t_actions = []
+        while cell == self.cell:
+            action = self.ai.chooseAction(state)
+            self.lastState = state
+            self.lastAction = action
+            self.goInDirection(action, cheese)
+            if cell == self.cell:
+                t_actions.append(action)
+                self.ai.actions.remove(action)
+            else: 
+                self.ai.actions.extend(t_actions)
+                self.ai.actions.sort()
 
-        self.goInDirection(action)
 
     def calcState(self):
         def cellvalue(cell):
@@ -128,18 +154,18 @@ mouse = Mouse()
 cat = Cat()
 cheese = Cheese()
 
-world = cellular.World(Cell, directions=directions, filename='../worlds/waco.txt')
+world = cellular.World(Cell, directions=directions, filename='/Users/edela/source/repos/basic_reinforcement_learning/worlds/eecs4401.txt')
 world.age = 0
 
-world.addAgent(cheese, cell=pickRandomLocation())
-world.addAgent(cat)
-world.addAgent(mouse)
+world.addAgent(cat, cell=world.getCell(5, 6))
+world.addAgent(cheese, cell=world.getCell(8,2))
+world.addAgent(mouse, cell=world.getCell(6, 1))
 
 epsilonx = (0,100000)
 epsilony = (0.1,0)
 epsilonm = (epsilony[1] - epsilony[0]) / (epsilonx[1] - epsilonx[0])
 
-endAge = world.age + 10000
+endAge = world.age + 10
 
 while world.age < endAge:
     world.update()
@@ -149,18 +175,19 @@ while world.age < endAge:
                             epsilony[1] if world.age > epsilonx[1] else
                             epsilonm*(world.age - epsilonx[0]) + epsilony[0])'''
 
-    if world.age % 10000 == 0:
-        print "{:d}, e: {:0.2f}, W: {:d}, L: {:d}"\
-            .format(world.age, mouse.ai.epsilon, mouse.fed, mouse.eaten)
-        mouse.eaten = 0
-        mouse.fed = 0
-
+s = "{:d}, e: {:0.2f}, W: {:d}, L: {:d}".format(world.age, mouse.ai.epsilon, mouse.fed, mouse.eaten)
+print(s)
+mouse.eaten = 0
+mouse.fed = 0
+cat.cell=world.getCell(5, 6)
+cheese.cell=world.getCell(8,2)
+mouse.cell=world.getCell(6, 1)
 world.display.activate(size=30)
 world.display.delay = 1
 while 1:
     world.update(mouse.fed, mouse.eaten)
-    print len(mouse.ai.q) # print the amount of state/action, reward 
+    print(len(mouse.ai.q)) # print the amount of state/action, reward 
                           # elements stored
     import sys
     bytes = sys.getsizeof(mouse.ai.q)
-    print "Bytes: {:d} ({:d} KB)".format(bytes, bytes/1024)
+    print("Bytes: {:d} ({:d} KB)".format(bytes, bytes//1024))
