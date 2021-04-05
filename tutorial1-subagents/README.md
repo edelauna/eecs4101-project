@@ -28,7 +28,7 @@ This project modifies a python implementiong of a cat (orange) and mouse (grey) 
 - *r'*: reward signal
 - *Q*: memo object with key-value pairs, where the key is a tuple of state and action, while value is the Q-value. Initilized to 0.0
 - *s,a,r*: previous state actions, and reward
-- *α*: learning rate, initialized to 0.2
+- *α*: learning rate, initialized to 0.1
 - *γ*: reward discount rate, initialized to 0.9
 
 ```
@@ -244,7 +244,7 @@ The BlackKing very quickly learns the optimium strategy of Play ~100 iterations:
 <div id='subagents'/>
 
 ### Adding Subagents
-A new ephermal agent was added called `Player` which would orchetrate the Q-Learning processes of its subagents: `BlackKing` and `Pawn`. 
+A new ephermal agent was added called `Player` which would orchestrate the Q-Learning processes of its subagents: `BlackKing` and `Pawn`. 
 
 The player agent would aggregate the Q-values from it's subagent and choose the best value for it's move.
 
