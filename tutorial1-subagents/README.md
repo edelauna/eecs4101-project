@@ -5,12 +5,12 @@ This presentation covers the basics of Q-learning using a modified cat-mouse-che
 
 ## Table of Contents
 - [Background](#background)
-- [The *World* and *Cat* aka *WhiteKing* player implementations](#world)
-- [The *Mouse* aka *BlackKing* player](#mouse)
+- [The *World*, *Cat* aka *WhiteKing*, and *Pawn* agents implementation](#world)
+- [The *Mouse* aka *BlackKing* agent](#mouse)
   - [Q-learning implementation](#q-learning)
 - [Results](#results)
 - [Adding Sub-Agents](#subagent)
-- [The *Pawn* and *Player* Agents](#pawn)
+- [The *Pawn* and *Player* agent](#pawn)
   - [Q-learning implementation](#q-learning-subagents)
 - [Results](#results-subagents)
 - [Reproduce it yourself](#reproduce)
@@ -26,7 +26,7 @@ This project modifies a python implementiong of a cat (orange) and mouse (grey) 
 **Pre-Condition**
 - *s'*: current state
 - *r'*: reward signal
-- *Q*: memo object with key-value pairs, where the key is a tuple of state and action, while value is the Q-value.
+- *Q*: memo object with key-value pairs, where the key is a tuple of state and action, while value is the Q-value. Initilized to 0.0
 - *s,a,r*: previous state actions, and reward
 - *α*: learning rate, initialized to 0.2
 - *γ*: reward discount rate, initialized to 0.9
@@ -48,8 +48,6 @@ vs after **150 000 generations** of reinforcement learning:
 
 ![](../img/rl_qlearning_2.gif)
 
- Q-Learning is an *off-policy* (can update the estimated value functions using hypothetical actions, those which have not actually been tried) algorithm for *temporal difference learning* ( method to estimate value functions). It can be proven that given sufficient training, the Q-learning converges with probability 1 to a close approximation of the action-value function for an arbitrary target policy. Q-Learning learns the optimal policy even when actions are selected according to a more exploratory or even random policy. Q-learning can be implemented as follows:
-
 <div id='world'/>
 
 ### The *World* and *Cat* aka *WhiteKing* player implementations
@@ -70,7 +68,7 @@ XXXXXXXXXXXX
 
 The *Cat* aka *WhiteKing* agent class inherit from `cellular.Agent` and its implementation is set to follow the *Mouse*/*BlackKing* agent via the `goTowards` function. The *WhiteKing* agent was also modified to be able to remove the *Pawn* agent from the board.
 
-The *WhiteKing* player calculates the quadratic distance to the *BlackKing* agent (`bestDist`) among its neighbours and moves itself (`self.cell = best`) to that cell.
+The *WhiteKing* agent calculates the quadratic distance to the *BlackKing* agent (`bestDist`) among its neighbours and moves itself (`self.cell = best`) to that cell.
 
 ```python
 class WhiteKing(cellular.Agent):
@@ -90,11 +88,26 @@ class WhiteKing(cellular.Agent):
 ```
 Overall, the *WhiteKing* pursues the *BlackKing* through the `goTowards` method by calculating the quadratic distance. Whenever it bumps into a wall, it takes a random action.
 
+The *Pawn* agent simply looks to it's diagonal and if it sees the *WhiteKing* will will move onto the *WhiteKing*
+
+```python
+class Pawn(cellular.Agent):
+    colour = 'brown'
+
+    def update(self):
+        # looking diagonally
+        cell = self.cell.neighbour[5]
+        if cell == whtKing.cell:
+            self.goInDirection(5)
+        else: 
+            self.cell = world.getCell(8,2)
+```
+
 <div id='mouse'/>
 
 ### The *Mouse* / *BlackKing* player
 
-The *Mouse*/*BlackKing* player contains the following attributes:
+The *Mouse*/*BlackKing* agent contains the following attributes:
 ```python
 class BlackKing(cellular.Agent):
     colour = 'black'
@@ -109,12 +122,12 @@ class BlackKing(cellular.Agent):
         self.lastAction = None
 
 ```
-The `loss` and `won` attributes store the performance of the player while the `lastState` and `lastAction` store information about its previous states used for learning.
+The `loss` and `won` attributes store the performance of the agent while the `lastState` and `lastAction` store information about its previous states used for learning.
 
 The `ai` attribute stores the Q-learning implementation which is initialized with the following parameters:
 - **directions**: The BlackKing is able to consider a movement into any of it's 8 neighbouring cells.
 
-The *BlackKing* player calculates the next state using the `calcState()` method implemented as follows:
+The *BlackKing* agent calculates the next state using the `calcState()` method implemented as follows:
 ```python
 
     def calcState(self):
@@ -171,7 +184,7 @@ def update(self):
                 world.addAgent(pawn, cell=world.getCell(8,2))
             return
 
-        if pawn.cell == blkKing.cell:
+        if pawn.cell == whtKing.cell:
             self.win += 1
             reward = 50
             if self.lastState is not None:
@@ -226,7 +239,7 @@ The learning algorithm records every state/action/reward combination in a dictio
 <div id='results'/>
 
 ### Results
-Proabbly due to the world set up very quickly the BlackKing learns the optimium strategy of Play ~100 iterations: 
+The BlackKing very quickly learns the optimium strategy of Play ~100 iterations: 
 
 <div id='subagents'/>
 
@@ -253,6 +266,7 @@ class Player(cellular.Agent):
             if q_pawn is None: q_pawn = [-inf]
             q_king = blkKing.update()
             if q_king is None: q_king = [-inf]
+            # defaulting to moving the BlackKing
             dec = 0
             if max(q_pawn) == max(q_king):
                 # Q Values are equal so we'll randomly decide which piece to move
@@ -260,9 +274,8 @@ class Player(cellular.Agent):
             elif max(q_pawn) > max(q_king):
                 # Pawn is the better piece
                 dec = 1
-            else: dec = 0         
             if dec < 0.5:
-                # Deciding to move the mouse - therefore reset the pawn back to its previous state
+                # Deciding to move the BlackKing - therefore reset the pawn back to its previous state
                 pawn.cell = self.old_cells[1]
                 pawn.lastState = None
                 self.setAgentAttr(blkKing)                
@@ -299,6 +312,19 @@ XXXXXXXXXXXX
 ### The *pawn* player
 
 The *Pawn* agent was modified to be able to also perform Q-Learning:
+
+```python
+class Pawn(cellular.Agent):
+    colour = 'brown'
+
+    def __init__(self):
+        self.ai = None
+        # Action 4 for forward motion and 5 for diagonal-left
+        self.ai = qlearn.QLearn(actions=[4,5],
+                                alpha=0.1, gamma=0.9, epsilon=0.1)
+        self.lastState = None
+        self.lastAction = None
+```
 
 The *Pawn* agent similar to the *BlackKing* agent calculates the next state using the `calcState()` method implemented as follows:
 ```python
@@ -400,15 +426,17 @@ This set up takes a little bit longer (possibly due to the world being more open
 
 ## Next Steps
 The worlds within which these agents are acting are relatively simple and small, so the *BlackKing* agent is relatively quickly able to yield an optimium strategy. Some areas for future considerations may be:
+* Adding a Q-value Function at the *Player* agent level 
+    - As well as updating the calcState() to incorporate the states of all the subagents
 * Increasing the Size of the World
 * Adding more subagents
 * Improving the *WhiteKing* logic - currently it blindly heads towards the *BlackKing*
 
-As the size of the world or agents is increased - it would also make sense to improve the Q-Value function, as it is currently implemented as a lookup table, which may not scale well. Therefor updating the Q-value function to more of approximation and enhancing it to utilize a neural network type of infrastructure via threshold or sigmoid functions may improve the memory consumption.
+As the size of the world or agents is increased - it would also make sense to improve the Q-Value function, as it is currently implemented as a lookup table, which may not scale well. Therefore updating the Q-value function to more of approximation and enhancing it to utilize a neural network type of infrastructure via threshold or sigmoid functions may improve the memory consumption.
 
 
 ### Reproduce it yourself
-Code works best with `pygame` to ensure that it is installed:
+Code works best with `pygame`, to ensure that it is installed:
 * `python -m pip install pygame`
 
 ```bash
