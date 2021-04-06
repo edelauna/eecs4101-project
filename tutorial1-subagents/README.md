@@ -13,7 +13,6 @@ This presentation covers the basics of Q-learning using a modified cat-mouse-che
 - [The *Pawn* and *Player* agent](#pawn)
   - [Q-learning implementation](#q-learning-subagents)
 - [Results](#results-subagents)
-- [Reproduce it yourself](#reproduce)
 
 <div id='background'/>
 
