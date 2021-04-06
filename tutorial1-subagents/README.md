@@ -435,15 +435,5 @@ The worlds within which these agents are acting are relatively simple and small,
 As the size of the world or agents is increased - it would also make sense to improve the Q-Value function, as it is currently implemented as a lookup table, which may not scale well. Therefore updating the Q-value function to more of approximation and enhancing it to utilize a neural network type of infrastructure via threshold or sigmoid functions may improve the memory consumption.
 
 
-### Reproduce it yourself
-Code works best with `pygame`, to ensure that it is installed:
-* `python -m pip install pygame`
-
-```bash
-git clone git@github.com:edelauna/eecs4101-project.git
-cd eecs4101-project
-python tutorial1-subagents/egoMouseLook.py
-```
-
 ### References
 Vilches, M. V. (2018, Jun 26). Basic Reinforcement learning. Retrieved from GitHub: https://github.com/vmayoral/basic_reinforcement_learning/blob/master/tutorial1/README.md
